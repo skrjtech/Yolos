@@ -1,0 +1,23 @@
+
+version: '3.9'
+services:
+  aimodel:
+    build: 
+      context: ../.docker
+      dockerfile: Dockerfile
+    image: skrjtech/aimodel
+    container_name: aimodel
+    tty: true
+    restart: always
+    environment:
+      - DISPLAY=$DISPLAY
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ..:/aiModelHome
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

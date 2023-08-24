@@ -1,0 +1,13 @@
+{
+	"name": "AI MODEL",
+	"dockerComposeFile": "../.docker/docker-compose.yml",
+	"service": "aimodel",
+	"workspaceFolder": "/aiModelHome",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python"
+			]
+		}
+	}
+}
