@@ -1,13 +1,6 @@
 {
-	"name": "AI MODEL",
+	"name": "Yolo Projects",
 	"dockerComposeFile": "../.docker/docker-compose.yml",
-	"service": "aimodel",
-	"workspaceFolder": "/aiModelHome",
-	"customizations": {
-		"vscode": {
-			"extensions": [
-				"ms-python.python"
-			]
-		}
-	}
+	"service": "yolosservices",
+	"workspaceFolder": "/yolosProject"	
 }

@@ -1,0 +1,216 @@
+import torch
+import numpy as np
+
+def TorchIsistance(Tensor: any) -> torch.Tensor:
+
+    T = lambda: torch.Tensor(Tensor)
+    if isinstance(Tensor, list): return T()
+    elif isinstance(Tensor, tuple): return T()
+    elif isinstance(Tensor, np.ndarray): return T()
+    return Tensor
+
+def IntersectionOverUnion(BBoxP: torch.Tensor, BBoxT: torch.Tensor) -> torch.Tensor:
+
+    BBoxP = TorchIsistance(BBoxP)
+    BBoxT = TorchIsistance(BBoxT)
+
+    if (BBoxP.dim() == 1): BBoxP = BBoxP.unsqueeze(0)
+    if (BBoxT.dim() == 1): BBoxT = BBoxT.unsqueeze(0)
+
+    N = BBoxP.size(0)
+    M = BBoxT.size(0)
+
+    XYMIN = torch.max(
+        BBoxP[..., :2].unsqueeze(1).expand(N, M, 2),
+        BBoxT[..., :2].unsqueeze(0).expand(N, M, 2),
+    )
+    XYMAX = torch.min(
+        BBoxP[..., 2:].unsqueeze(1).expand(N, M, 2),
+        BBoxT[..., 2:].unsqueeze(0).expand(N, M, 2),
+    )
+
+    WH = torch.clamp(XYMAX - XYMIN, min=0)
+    Intersection = WH[..., 0] * WH[..., 1]
+
+    Area1 = (BBoxP[..., 2] - BBoxP[..., 0]) * (BBoxP[..., 3] - BBoxP[..., 1])
+    Area2 = (BBoxT[..., 2] - BBoxT[..., 0]) * (BBoxT[..., 3] - BBoxT[..., 1])
+    Area1 = Area1.unsqueeze(1).expand_as(Intersection)
+    Area2 = Area2.unsqueeze(0).expand_as(Intersection)
+
+    Union = Area1 + Area2 - Intersection
+
+    return Intersection / Union
+
+def EncoderBBox(BBox: torch.Tensor, Width: int, Height: int, S: int = 7) -> torch.Tensor:
+
+    """
+        BBox: [[Xmin, Ymin, Xmax, Ymax, Label],...]
+        Width:
+        Height:
+        S:
+        return [[XIndex, YIndex, CenterX, CenterY, Width, Height],...]
+    """
+
+    BBox = TorchIsistance(BBox)
+    if BBox.dim() == 1: BBox = BBox.reshape(1, -1)
+
+    S = float(S)
+    Label = BBox[..., -1].unsqueeze(-1)
+    WH = torch.Tensor([Width, Height]).unsqueeze(0)
+
+    XYXY = BBox[..., :4] / torch.cat((WH, WH), dim=1)
+    XYC = (XYXY[..., [2, 3]] + XYXY[..., [0, 1]]) / 2.
+    WH = (XYXY[..., [2, 3]] - XYXY[..., [0, 1]])
+
+    XYI = (XYC * S).ceil() - 1.
+    XYN = (XYC - (XYI / S)) * S
+
+    return torch.cat((XYI, XYN, WH, Label), dim=1)
+
+def DecoderBBox(BBox: torch.Tensor, Width: int, Height: int, S: int = 7) -> torch.Tensor:
+
+    """
+        BBox: [[XIndex, YIndex, CenterX, CenterY, Width, Height],...]
+        Width:
+        Height:
+        S:
+        return [[Xmin, Ymin, Xmax, Ymax, Label],...]
+    """
+
+    BBox = TorchIsistance(BBox)
+    if BBox.dim() == 1: BBox = BBox.reshape(1, -1)
+
+    S = float(S)
+    Label = BBox[..., -1].unsqueeze(-1)
+    WH = torch.Tensor([Width, Height]).unsqueeze(0)
+
+    XY0 = BBox[..., [0, 1]] / S
+    XYN = BBox[..., [2, 3]] / S + XY0
+    XYMIN = (XYN - 0.5 * BBox[..., [4, 5]]) * WH
+    XYMAX = (XYN + 0.5 * BBox[..., [4, 5]]) * WH
+
+    return torch.cat((XYMIN, XYMAX, Label), dim=1).ceil()
+
+def MakeTargetBBox(BBox: torch.Tensor, S: int, B: int, C: int) -> torch.Tensor:
+
+    """
+        BBox: [[XIndex, YIndex, CenterX, CenterY, Width, Height],...]
+        S:
+        B:
+        C
+        return Tensor(7, 7, B * 5 + C)
+    """
+
+    BBox = TorchIsistance(BBox)
+    if (BBox.dim() == 1): BBox = BBox.reshape(1, -1)
+
+    N = B * 5 + C
+    Label = BBox[..., -1].unsqueeze(-1).long()
+    Target = torch.zeros(S, S, N)
+
+    X = BBox[..., 0].unsqueeze(-1).long()
+    Y = BBox[..., 1].unsqueeze(-1).long()
+
+    XYWH = BBox[..., [2, 3, 4, 5]]
+    Target[Y, X, [0, 1, 2, 3, 5, 6, 7, 8]] = torch.cat((XYWH, XYWH), dim=1)
+    Target[Y, X, [4, 9]] = torch.Tensor([1., 1.])
+    Target[Y, X, B * 5 + Label] = torch.Tensor([1.])
+
+    return Target
+
+def DetechBBox(BBox: torch.Tensor, probThreshold: float, S: int, B: int, C: int) -> torch.Tensor:
+
+    assert BBox.dim() < 4 # 0 ~ 3 Clear!
+
+    X = torch.arange(7).unsqueeze(-1).expand(S, S)
+    Y = torch.arange(7).unsqueeze(-1).expand(S, S).transpose(1, 0)
+
+    Class = BBox[..., 10:].reshape(S, S, C)
+    Conf = BBox[..., [4, 9]].reshape(S, S, B)
+    BBoxes = BBox[..., [0, 1, 2, 3, 5, 6, 7, 8]].reshape(S, S, B, 4)
+
+    ClassScore, ClassIndex = Class.max(-1)
+    maskProb = (Conf * ClassScore.unsqueeze(-1).expand_as(Conf)) > probThreshold
+
+    # CellSize = 1. / float(S)
+    # XY0N = XY * CellSize
+    # XYN = BBoxes[..., [0, 1]] * CellSize + XY0N.unsqueeze(2)
+    # BBoxes[..., [0, 1]] = BBoxes[..., [0, 1]] * CellSize + XY0N.unsqueeze(2)
+    # WHN = BBoxes[..., [2, 3]]
+    # XYMIN = XYN - 0.5 * WHN
+    # XYMAX = XYN + 0.5 * WHN
+    # XYMINMAX = torch.concat((XYMIN, XYMAX), dim=-1)[maskProb]
+
+    X = X.unsqueeze(-1).expand_as(maskProb)[maskProb].unsqueeze(-1)
+    Y = Y.unsqueeze(-1).expand_as(maskProb)[maskProb].unsqueeze(-1)
+    XY = torch.concat((X, Y), dim=-1)
+    XYMINMAX = BBoxes[maskProb]
+    Conf = Conf[maskProb].unsqueeze(-1)
+    ClassIndex = ClassIndex.unsqueeze(-1).expand_as(maskProb)[maskProb].unsqueeze(-1)
+    ClassScore = ClassScore.unsqueeze(-1).expand_as(maskProb)[maskProb].unsqueeze(-1)
+
+    return torch.concat((XY, XYMINMAX, Conf, ClassScore, ClassIndex), dim=-1)
+
+def NonMaximumSuppression(BBox: torch.Tensor, Scores: torch.Tensor, threshold: float = 0.5) -> torch.Tensor:
+
+    BBox = TorchIsistance(BBox)
+    if (BBox.size(0) == 0): return BBox
+    if (BBox.dim() == 1): BBox = BBox.unsqueeze(0)
+
+    X1, Y1, X2, Y2 = torch.hsplit(BBox, 4)
+    Areas = (X2 - X1 + 1) * (Y2 - Y1 + 1)
+    _, Index = torch.sort(Scores, descending=True)
+
+    Output = []
+    while Index.numel() > 0:
+        Select = Index.long().item() if (Index.numel() == 1) else Index[0].long()
+        Output += [Select]
+        if (Index.numel() == 1): break
+
+        # Cul IoU
+        index = Index[1:].long()
+        x1 = X1[index].clamp(min=X1[Select])
+        y1 = Y1[index].clamp(min=Y1[Select])
+        x2 = X2[index].clamp(max=X2[Select])
+        y2 = Y2[index].clamp(max=Y2[Select])
+        wh = (torch.clamp(x2 - x1 + 1, 0) * torch.clamp(y2 - y1 + 1, 0))
+        Unions = Areas[Select] + Areas[index] - wh
+        IoUs = wh / Unions
+
+        # Delete Index
+        IndexKeep = (IoUs <= threshold).nonzero().squeeze()
+        if (IndexKeep.numel() == 0): break
+        Index = Index[IndexKeep + 1]
+
+    return torch.LongTensor(Output)
+
+def MeanAveragePrecision(Predict: torch.Tensor) -> torch.Tensor:
+    pass
+
+if __name__ == "__main__":
+    BBox = torch.Tensor([
+        [10, 10, 30, 30, 0],
+        # [4, 4, 30, 30],
+        # [5, 5, 30, 30]
+    ])
+
+    enc = EncoderBBox(BBox, 400, 400, 7)
+    Target = MakeTargetBBox(enc, 7, 2, 3)
+    dec1 = DecoderBBox(enc, 400, 400)
+    detech = DetechBBox(torch.rand(7, 7, 13), 0.1, 7, 2, 3)
+    # detech = DetechBBox(Target, 0.1, 7, 2, 3)
+    dec2 = DecoderBBox(detech, 400, 400)
+
+
+    print(detech.shape)
+    banana = (detech[..., -1] == 0)
+    banana = detech[banana.unsqueeze(-1).expand_as(detech)].reshape(-1, 9)
+    apple = (detech[..., -1] == 1)
+    apple = detech[apple.unsqueeze(-1).expand_as(detech)].reshape(-1, 9)
+    orange = (detech[..., -1] == 2)
+    orange = detech[orange.unsqueeze(-1).expand_as(detech)].reshape(-1, 9)
+
+    bananaDec = DecoderBBox(banana, 400, 400)
+    bananaScore = banana[..., -2]
+    banana = NonMaximumSuppression(bananaDec[..., :-1], bananaScore)
+

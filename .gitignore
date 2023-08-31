@@ -1,1 +1,4 @@
-aiModel
+.idea
+.gitignore
+yolos/Database/Fruits
+yolosProject/yolos/build
