@@ -7,8 +7,8 @@ import xml.etree.ElementTree as ET
 import os
 from glob import glob
 
-# My Libs
-import utils as myutils
+# MyLibs
+from utils import EncoderBBox, MakeTargetBBox
 
 __all__ = [
     "FruitsImageDataset"
@@ -87,8 +87,8 @@ class FruitsImageDataset(YoloDataset):
             ]
 
         image, BBoxes = self.transform(image, BBoxes)
-        EncoderBox = myutils.EncoderBBox(BBoxes, width, height, S=self.S)
-        Target = myutils.MakeTargetBBox(EncoderBox, self.S, self.B, self.C)
+        EncoderBox = EncoderBBox(BBoxes, width, height, S=self.S)
+        Target = MakeTargetBBox(EncoderBox, self.S, self.B, self.C)
 
         return image, Target
 

@@ -9,6 +9,7 @@ def TorchIsistance(Tensor: any) -> torch.Tensor:
     elif isinstance(Tensor, np.ndarray): return T()
     return Tensor
 
+
 def IntersectionOverUnion(BBoxP: torch.Tensor, BBoxT: torch.Tensor) -> torch.Tensor:
 
     BBoxP = TorchIsistance(BBoxP)
@@ -94,7 +95,7 @@ def DecoderBBox(BBox: torch.Tensor, Width: int, Height: int, S: int = 7) -> torc
 def MakeTargetBBox(BBox: torch.Tensor, S: int, B: int, C: int) -> torch.Tensor:
 
     """
-        BBox: [[XIndex, YIndex, CenterX, CenterY, Width, Height],...]
+        BBox: [[XIndex, YIndex, CenterX, CenterY, Width, Height, Label],...]
         S:
         B:
         C
@@ -118,7 +119,16 @@ def MakeTargetBBox(BBox: torch.Tensor, S: int, B: int, C: int) -> torch.Tensor:
 
     return Target
 
-def DetechBBox(BBox: torch.Tensor, probThreshold: float, S: int, B: int, C: int) -> torch.Tensor:
+def DetectBBox(BBox: torch.Tensor, probThreshold: float, S: int, B: int, C: int) -> torch.Tensor:
+
+    """
+        BBox: Tensor(S, S, N)
+        probThreshold:
+        S:
+        B:
+        C:
+        return [[Xi, Yi, Xmin, Ymin, Xmax, Ymax, Confidence, ClassScore, ClassIndex], ...]
+    """
 
     assert BBox.dim() < 4 # 0 ~ 3 Clear!
 
@@ -132,15 +142,6 @@ def DetechBBox(BBox: torch.Tensor, probThreshold: float, S: int, B: int, C: int)
     ClassScore, ClassIndex = Class.max(-1)
     maskProb = (Conf * ClassScore.unsqueeze(-1).expand_as(Conf)) > probThreshold
 
-    # CellSize = 1. / float(S)
-    # XY0N = XY * CellSize
-    # XYN = BBoxes[..., [0, 1]] * CellSize + XY0N.unsqueeze(2)
-    # BBoxes[..., [0, 1]] = BBoxes[..., [0, 1]] * CellSize + XY0N.unsqueeze(2)
-    # WHN = BBoxes[..., [2, 3]]
-    # XYMIN = XYN - 0.5 * WHN
-    # XYMAX = XYN + 0.5 * WHN
-    # XYMINMAX = torch.concat((XYMIN, XYMAX), dim=-1)[maskProb]
-
     X = X.unsqueeze(-1).expand_as(maskProb)[maskProb].unsqueeze(-1)
     Y = Y.unsqueeze(-1).expand_as(maskProb)[maskProb].unsqueeze(-1)
     XY = torch.concat((X, Y), dim=-1)
@@ -153,18 +154,26 @@ def DetechBBox(BBox: torch.Tensor, probThreshold: float, S: int, B: int, C: int)
 
 def NonMaximumSuppression(BBox: torch.Tensor, Scores: torch.Tensor, threshold: float = 0.5) -> torch.Tensor:
 
+    """
+        BBox: [[Xmin, Ymin, Xmax, Ymax], ...]
+        Scores: [Score Value, ...]
+        threshold:
+        return [index, ...]
+    """
+
     BBox = TorchIsistance(BBox)
     if (BBox.size(0) == 0): return BBox
     if (BBox.dim() == 1): BBox = BBox.unsqueeze(0)
 
-    X1, Y1, X2, Y2 = torch.hsplit(BBox, 4)
+    X1, Y1, X2, Y2 = list(map(lambda x: x.squeeze(1), torch.hsplit(BBox, 4)))
+
     Areas = (X2 - X1 + 1) * (Y2 - Y1 + 1)
     _, Index = torch.sort(Scores, descending=True)
-
     Output = []
     while Index.numel() > 0:
         Select = Index.long().item() if (Index.numel() == 1) else Index[0].long()
-        Output += [Select]
+
+        Output.append(Select)
         if (Index.numel() == 1): break
 
         # Cul IoU
@@ -173,9 +182,9 @@ def NonMaximumSuppression(BBox: torch.Tensor, Scores: torch.Tensor, threshold: f
         y1 = Y1[index].clamp(min=Y1[Select])
         x2 = X2[index].clamp(max=X2[Select])
         y2 = Y2[index].clamp(max=Y2[Select])
-        wh = (torch.clamp(x2 - x1 + 1, 0) * torch.clamp(y2 - y1 + 1, 0))
-        Unions = Areas[Select] + Areas[index] - wh
-        IoUs = wh / Unions
+        Intersection = (torch.clamp(x2 - x1 + 1, min=0) * torch.clamp(y2 - y1 + 1, min=0))
+        Unions = Areas[Select] + Areas[index] - Intersection
+        IoUs = Intersection / Unions
 
         # Delete Index
         IndexKeep = (IoUs <= threshold).nonzero().squeeze()
@@ -184,33 +193,78 @@ def NonMaximumSuppression(BBox: torch.Tensor, Scores: torch.Tensor, threshold: f
 
     return torch.LongTensor(Output)
 
-def MeanAveragePrecision(Predict: torch.Tensor) -> torch.Tensor:
-    pass
+
+def DetectProcessing(Predicts: torch.Tensor, probThreshold: float, iouThreshold: float, Width: int, Height: int, S: int, B: int, C: int):
+    Detect = DetectBBox(Predicts, probThreshold, S, B, C)
+
+    Container = []
+    for label in range(C):
+        Select = Detect[(Detect[..., -1] == label).unsqueeze(-1).expand_as(Detect)].reshape(-1, 9)
+        Indexs = Select[..., [0, 1]]
+        Boxes = Select[..., [2, 3, 4, 5]]
+        Scores = Select[..., -1]
+        NMS = NonMaximumSuppression(Boxes, Scores, iouThreshold)
+        if (NMS.numel() == 0): continue
+        Indexs = Indexs[NMS]
+        Boxes = Boxes[NMS]
+        Scores = Scores[NMS].unsqueeze(-1)
+        Labels = torch.Tensor([label]).unsqueeze(-1).expand(NMS.size(0), 1)
+        output = torch.concat((Indexs, Boxes, Scores, Labels), dim=-1)
+        Decoder = DecoderBBox(output, Width, Height, S)
+        Container += [output]
+
+    return Container
+
+
+def AveragePrecision(Predict: torch.Tensor, Target: torch.Tensor, C: int):
+    output = {}
+    for label in range(len(Target)):
+        pBBox = Predict[label]
+        tBBox = Target[label]
+
+        output[label] = []
+        for tbox in tBBox:
+            Size = pBBox.size(0)
+            _, Sorted = torch.sort(pBBox[..., -1], descending=True)
+            pBBox = pBBox[Sorted]
+            Scores = pBBox[..., -1].reshape(-1)
+            iou = (IntersectionOverUnion(pBBox[..., :4], tbox[:4]) > 0.5).reshape(-1)
+            TP = torch.cumsum((iou == True).long(), dim=0)
+            FP = torch.cumsum((iou == False).long(), dim=0)
+            Precision = TP / (TP + FP)
+            Recall = TP / Size
+            Precision = torch.concat((torch.Tensor([0]), Precision, torch.Tensor([0])))
+            Recall = torch.concat((torch.Tensor([0]), Recall, torch.Tensor([1])))
+            reversPrecision = Precision.flip(dims=(0,))
+            PrecisionValues = torch.cummax(reversPrecision, dim=0)[0].flip(dims=(0,))
+            AP = (torch.diff(Recall) * Precision[1:]).sum()
+            output[label] += [AP]
+
+    return output
+
+
+def MeanAveragePrecision(AP: dict, C: int):
+    Output = {key: 0 for key in AP.keys()}
+    for key, value in AP.items():
+        value = torch.Tensor(value).mean()
+        Output[key] += value
+    return Output
 
 if __name__ == "__main__":
-    BBox = torch.Tensor([
-        [10, 10, 30, 30, 0],
-        # [4, 4, 30, 30],
-        # [5, 5, 30, 30]
-    ])
 
-    enc = EncoderBBox(BBox, 400, 400, 7)
-    Target = MakeTargetBBox(enc, 7, 2, 3)
-    dec1 = DecoderBBox(enc, 400, 400)
-    detech = DetechBBox(torch.rand(7, 7, 13), 0.1, 7, 2, 3)
-    # detech = DetechBBox(Target, 0.1, 7, 2, 3)
-    dec2 = DecoderBBox(detech, 400, 400)
+    torch.manual_seed(1234)
+    torch.cuda.manual_seed_all(1234)
 
+    BBox = [
+        [100, 100, 300, 300, 0],
+        [30, 30, 70, 70, 1],
+        [310, 310, 370, 370, 2],
+    ]
 
-    print(detech.shape)
-    banana = (detech[..., -1] == 0)
-    banana = detech[banana.unsqueeze(-1).expand_as(detech)].reshape(-1, 9)
-    apple = (detech[..., -1] == 1)
-    apple = detech[apple.unsqueeze(-1).expand_as(detech)].reshape(-1, 9)
-    orange = (detech[..., -1] == 2)
-    orange = detech[orange.unsqueeze(-1).expand_as(detech)].reshape(-1, 9)
+    Encoder = EncoderBBox(BBox, 400, 400, 7)
+    Target = MakeTargetBBox(Encoder, 7, 2, 3)
 
-    bananaDec = DecoderBBox(banana, 400, 400)
-    bananaScore = banana[..., -2]
-    banana = NonMaximumSuppression(bananaDec[..., :-1], bananaScore)
+    TargetDetect = DetectProcessing(Target, 0.2, 0.5, 400, 400, 7, 2, 3)
+    PredictDetect = DetectProcessing(torch.rand(7, 7, 13), 0.2, 0.5, 400, 400, 7, 2, 3)
 
+    print(TargetDetect)

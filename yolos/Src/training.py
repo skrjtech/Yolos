@@ -1,8 +1,8 @@
 import torch
 
 # MyLibs
-import models as mymodels
 import utils as myutils
+import models as mymodels
 import Datasets as mydatasets
 
 class TrainingModel:
