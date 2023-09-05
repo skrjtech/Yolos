@@ -8,7 +8,7 @@ import os
 from glob import glob
 
 # MyLibs
-from utils import EncoderBBox, MakeTargetBBox
+from yolos.utils import EncoderBBox, MakeTargetBBox
 
 __all__ = [
     "FruitsImageDataset"

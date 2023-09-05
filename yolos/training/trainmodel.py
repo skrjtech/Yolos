@@ -1,21 +1,21 @@
 import torch
 
 # MyLibs
-import utils as myutils
-import models as mymodels
-import Datasets as mydatasets
+from yolos.utils import *
+from yolos.models import YoloV1, YoloLossModel
+from yolos.datasets import FruitsImageDataset, Compose, ToTensor, Resize
 
 class TrainingModel:
     def __init__(self) -> None:
 
-        self.net = mymodels.YoloV1(C=3)
+        self.net = YoloV1(C=3)
         self.net.cuda()
         self.optmizer = torch.optim.Adam(self.net.parameters(), lr=0.0001)
-        self.yololoss = mymodels.YoloLossModel(C=3)
+        self.yololoss = YoloLossModel(C=3)
 
-        dataset = mydatasets.FruitsImageDataset(
+        dataset = FruitsImageDataset(
             "/yolosProject/yolos/Database/Fruits/train",
-            mydatasets.Compose([mydatasets.Resize(size=(224, 224)), mydatasets.ToTensor()]),
+            Compose([Resize(size=(224, 224)), ToTensor()]),
             C=3
         )
         self.dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True)
