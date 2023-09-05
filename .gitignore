@@ -1,3 +1,2 @@
 .idea
-yolos/build/*
-yolos/Database/Fruits
+database/Fruits

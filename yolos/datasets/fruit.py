@@ -10,13 +10,6 @@ from glob import glob
 # MyLibs
 from yolos.utils import EncoderBBox, MakeTargetBBox
 
-__all__ = [
-    "FruitsImageDataset"
-    "Compose",
-    "ToTensor",
-    "Resize"
-]
-
 
 class Compose:
     def __init__(self, transform: list) -> None:
@@ -94,7 +87,7 @@ class FruitsImageDataset(YoloDataset):
 
 
 if __name__ == "__main__":
-    path = "/yolosProject/yolos/Database/Fruits/train"
+    path = "database/Fruits/train"
 
     transform = Compose([
         Resize(size=(224, 224)),
