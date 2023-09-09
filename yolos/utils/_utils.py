@@ -1,6 +1,12 @@
 import torch
 import numpy as np
 
+from yolos.structure import YoloRoot, Boxes
+def Box2CenterPoint(Root: YoloRoot, Boxes: Boxes):
+    yolobox = Root.yolobox
+    
+
+
 def TorchIsistance(Tensor: any) -> torch.Tensor:
 
     T = lambda: torch.Tensor(Tensor)
@@ -8,7 +14,6 @@ def TorchIsistance(Tensor: any) -> torch.Tensor:
     elif isinstance(Tensor, tuple): return T()
     elif isinstance(Tensor, np.ndarray): return T()
     return Tensor
-
 
 def IntersectionOverUnion(BBoxP: torch.Tensor, BBoxT: torch.Tensor) -> torch.Tensor:
 

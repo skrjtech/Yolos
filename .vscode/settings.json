@@ -1,0 +1,14 @@
+{
+    // "python.pythonPath": "{/aios/bin/python}",
+    "python.pipenvPath": "/aios/bin/pip",
+    "python.defaultInterpreterPath": "/aios/bin/python",
+    // "terminal.integrated.env.windows": {
+    //     "PATH": "/aios/bin"
+    // },
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.autoFormatStrings": true,
+    "python.analysis.addImport.exactMatchOnly": true,
+    "python.analysis.completeFunctionParens": true,
+
+    "editor.snippetSuggestions": "top"
+}

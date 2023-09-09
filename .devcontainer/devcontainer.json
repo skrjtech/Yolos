@@ -2,5 +2,13 @@
 	"name": "Yolo Projects",
 	"dockerComposeFile": "../.docker/docker-compose.yml",
 	"service": "yolosservices",
-	"workspaceFolder": "/yolosProject"	
+	"workspaceFolder": "/yolos",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.vscode-pylance",
+				"ms-azuretools.vscode-docker"
+			]
+		}
+	}
 }

@@ -2,9 +2,9 @@
 version: '3.9'
 services:
   yolosservices:
-    build: 
-      context: ..
-      dockerfile: .docker/Dockerfile
+    # build: 
+    #   context: ..
+    #   dockerfile: .docker/Dockerfile
     image: skrjtech/yolos:latest
     container_name: yolosprojectcontainer
     tty: true
@@ -13,7 +13,7 @@ services:
       - DISPLAY=$DISPLAY
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      - ..:/yolosProject
+      - ..:/yolos
     deploy:
       resources:
         reservations:

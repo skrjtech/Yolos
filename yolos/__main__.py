@@ -1,8 +1,9 @@
-from yolos.datasets import FruitsImageDataset
-from yolos.utils import MakeTargetBBox
+from yolos.training import TrainingModel
 
 def main():
-    print("Hello!")
+    model = TrainingModel()
+    model.paramsSavePath = "outputs/params.pt"
+    model.Run(1000)
 
 if __name__ == '__main__':
     main()

@@ -8,13 +8,16 @@ from yolos.datasets import FruitsImageDataset, Compose, ToTensor, Resize
 class TrainingModel:
     def __init__(self) -> None:
 
+        self.datasetsPath = "database/Fruits/train"
+        self.paramsSavePath = "outputs/params.pt"
+
         self.net = YoloV1(C=3)
         self.net.cuda()
         self.optmizer = torch.optim.Adam(self.net.parameters(), lr=0.0001)
         self.yololoss = YoloLossModel(C=3)
 
         dataset = FruitsImageDataset(
-            "/yolosProject/yolos/Database/Fruits/train",
+            self.datasetsPath,
             Compose([Resize(size=(224, 224)), ToTensor()]),
             C=3
         )
@@ -53,13 +56,13 @@ class TrainingModel:
                 "net": net_state,
                 "optim": optim_state
             },
-            "params.pt"
+            self.paramsSavePath
         )
         self.net.cuda()
 
     def Load(self):
         self.net.cpu()
-        params = torch.load("params.pt")
+        params = torch.load(self.paramsSavePath)
         self.net.load_state_dict(params["net"])
         self.net.cuda()
 
