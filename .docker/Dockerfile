@@ -6,6 +6,9 @@ RUN apt update && apt upgrade -y
 RUN apt-get update && apt-get upgrade -y
 RUN apt install -y sudo git curl locales vim tmux language-pack-ja-base language-pack-ja fonts-noto-cjk fcitx-mozc
 
+# Tab補完の使用
+RUN apt install -y bash-completion && source /etc/bash_completion 
+
 RUN echo 'export LANG=ja_JP.UTF-8' >> ~/.bashrc
 RUN echo 'export GTK_IM_MODULE=xim' >>> ~/.bashrc
 RUN echo 'export QT_IM_MODULE=fcitx' >>> ~/.bashrc

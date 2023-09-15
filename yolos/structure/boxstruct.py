@@ -68,7 +68,7 @@ class Boxes:
     
 from .yolostruct import YoloRoot
 class BoxCenter:
-    def __init__(self, Root: )
+    def __init__(self, Root: YoloRoot, )
 
 if __name__ == "__main__":
     boxes = Boxes(222, 222)
