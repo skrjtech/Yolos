@@ -6,5 +6,35 @@
 			"	pass"
 		],
 		"description": "run main"
+	},
+	"commentclass": {
+		"prefix": "commentclass",
+		"body": [
+			"\"\"\"",
+			"",
+			"",
+			"Attributes\n",
+			"Parameters\n",
+			"-----------",
+			"",
+			"return "
+			"\"\"\""
+		],
+		"description"
+	},
+	"commentfunc": {
+		"prefix": "commentfunc",
+		"body": [
+			"\"\"\"",
+			"",
+			"",
+			"description\n: ",
+			"Parameters\n",
+			"-----------",
+			"",
+			"return "
+			"\"\"\""
+		],
+		"description"
 	}
 }
