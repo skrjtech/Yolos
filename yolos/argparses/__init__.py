@@ -19,7 +19,7 @@ initParses = textwrap.dedent(
         |- Datasets (学習・評価用データ格納領域)
         |   |-/TrainData
         |   |-/TestData
-        |- Outputs (学習進捗，学習済みパラメータ，学習データ出力，etc...)
+        |- Outputs (学習進捗, 学習済みパラメータ, 学習データ出力, etc...)
     """
 )
 
@@ -28,7 +28,7 @@ def argumentParse():
     parses = argparse.ArgumentParser(
         description='',
         formatter_class=ArgsHelpFormat,
-        epilog=
+        epilog=""
     )
 
 
