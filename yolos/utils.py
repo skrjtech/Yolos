@@ -1,12 +1,6 @@
 import torch
 import numpy as np
-
-from yolos.structure import YoloRoot, Boxes
-def Box2CenterPoint(Root: YoloRoot, Boxes: Boxes):
-    yolobox = Root.yolobox
-    
-
-
+ 
 def TorchIsistance(Tensor: any) -> torch.Tensor:
 
     T = lambda: torch.Tensor(Tensor)
@@ -257,19 +251,36 @@ def MeanAveragePrecision(AP: dict, C: int):
 
 if __name__ == "__main__":
 
-    torch.manual_seed(1234)
-    torch.cuda.manual_seed_all(1234)
+    # torch.manual_seed(1234)
+    # torch.cuda.manual_seed_all(1234)
 
-    BBox = [
-        [100, 100, 300, 300, 0],
-        [30, 30, 70, 70, 1],
-        [310, 310, 370, 370, 2],
-    ]
+    # BBox = [
+    #     [100, 100, 300, 300, 0],
+    #     [30, 30, 70, 70, 1],
+    #     [310, 310, 370, 370, 2],
+    # ]
 
-    Encoder = EncoderBBox(BBox, 400, 400, 7)
-    Target = MakeTargetBBox(Encoder, 7, 2, 3)
+    # Encoder = EncoderBBox(BBox, 400, 400, 7)
+    # Target = MakeTargetBBox(Encoder, 7, 2, 3)
 
-    TargetDetect = DetectProcessing(Target, 0.2, 0.5, 400, 400, 7, 2, 3)
-    PredictDetect = DetectProcessing(torch.rand(7, 7, 13), 0.2, 0.5, 400, 400, 7, 2, 3)
+    # TargetDetect = DetectProcessing(Target, 0.2, 0.5, 400, 400, 7, 2, 3)
+    # PredictDetect = DetectProcessing(torch.rand(7, 7, 13), 0.2, 0.5, 400, 400, 7, 2, 3)
 
-    print(TargetDetect)
+    # print(TargetDetect)
+
+    # TP = torch.Tensor([1, 1, 0, 0, 0, 1, 1, 0, 0, 1]).float()
+    # Precision = torch.cumsum(TP, dim=-1) / (torch.arange(TP.size(0)) + 1) * TP
+    # Recall = torch.cumsum(TP, dim=-1) / torch.sum(TP)
+    # print(Precision)
+    # print(Recall)
+    # print(torch.sum(Precision) / torch.sum(TP))
+    # PrecisionFlip = Precision.flip(dims=(0,))
+    # PrecisionFlip = torch.cummax(PrecisionFlip, dim=0)[0].flip(dims=(0,))
+    # print(PrecisionFlip)
+    # import matplotlib.pyplot as plt
+
+    # plt.plot(Recall.numpy(), PrecisionFlip.numpy())
+    # plt.plot(Recall.numpy(), Precision.numpy())
+    # plt.show()
+
+    pass
