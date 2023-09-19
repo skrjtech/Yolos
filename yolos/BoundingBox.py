@@ -94,6 +94,10 @@ class _BaseBoxes:
     def __dellitem__(self, idx: int) -> None:
         del self.Box[idx]
         return None
+    
+def PixelRepair(pixel):
+    if (pixel - int(pixel)) < 0.5: return int(pixel)
+    else: return int(pixel) + 1
 
 class BoundingBoxes(_BaseBoxes):
     """
@@ -145,10 +149,10 @@ class BoundingBoxes(_BaseBoxes):
     def DNormalize(self) -> BoundingBoxes:
         for i, b in enumerate(self.Box):
             A, B, C, D, L1, L2 = b()
-            A *= self.width
-            B *= self.height
-            C *= self.width
-            D *= self.height
+            A = PixelRepair(A * self.width)
+            B = PixelRepair(B * self.height)
+            C = PixelRepair(C * self.width)
+            D = PixelRepair(D * self.height)
             if isinstance(b, BoundingBox): box = BoundingBox(A, B, C, D, L1, L2)
             elif isinstance(b, BoundingBoxCenter): box = BoundingBoxCenter(A, B, C, D, L1, L2)
             self.__setitem__(i, box)

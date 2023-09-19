@@ -1,8 +1,5 @@
-from .fruit import Compose, ToTensor, Resize, FruitsImageDataset
+from .fruit import FruitsImageDataset
 
 __all__ = [
-    "Compose",
-    "ToTensor",
-    "Resize",
     "FruitsImageDataset"
 ]

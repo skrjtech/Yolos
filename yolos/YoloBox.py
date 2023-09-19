@@ -5,8 +5,13 @@ from typing import Any, Tuple, List, Union
 from matplotlib.dates import TU
 
 import torch
+from yolos.BoundingBox import BoundingBox, BoundingBoxes, BoundingBoxCenter
 
-from BoundingBox import BoundingBox, BoundingBoxes, BoundingBoxCenter
+__all__ = [
+    "YoloXYBox",
+    "YoloGridBox",
+    "YoloStruct"
+]
 
 @dataclass(frozen=True)
 class YoloXYBox:
@@ -69,6 +74,9 @@ class _BaseBoxes:
     def __dellitem__(self, idx: int) -> None:
         del self.GridBox[idx]
         return None
+    
+    def ToBoundingBoxes(self):
+        raise Exception("未設定")
 
 @dataclass(frozen=True)
 class YoloGridBox:
@@ -77,10 +85,6 @@ class YoloGridBox:
     C: int
     def __call__(self) -> Tuple[int, int, int]:
         return (self.S, self.B, self.C)
-
-def PixelRepair(pixel):
-    if (pixel - int(pixel)) < 0.5: return int(pixel)
-    else: return int(pixel) + 1
 
 class YoloStruct(_BaseBoxes):
     def __init__(self, yolobox: YoloGridBox, bboxes: BoundingBoxes) -> None:
@@ -139,7 +143,7 @@ class YoloStruct(_BaseBoxes):
             Target[cxi, cyi, B * 5 + id] = torch.Tensor([1.])
         return Target
 
-    def GridBoxDetech(self, PredictBox: torch.Tensor, probThreshold: float, Bpatter: bool=False):
+    def GridBoxDetect(self, PredictBox: torch.Tensor, probThreshold: float, Bpatter: bool=False):
         assert PredictBox.dim() < 4 # 0 ~ 3 Clear!
         self.PredictBox = PredictBox
         S, B, C = self.yolobox()

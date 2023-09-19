@@ -1,9 +1,12 @@
+import imp
 import torch
 
 # MyLibs
 from yolos.utils import *
 from yolos.models import YoloV1, YoloLossModel
-from yolos.datasets import FruitsImageDataset, Compose, ToTensor, Resize
+from yolos.datasets import FruitsImageDataset
+from yolos.transforms import Compose, ToTensor, Resize
+from yolos.YoloBox import YoloStruct, YoloGridBox
 
 class TrainingModel:
     def __init__(self) -> None:
@@ -24,21 +27,29 @@ class TrainingModel:
         self.dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True)
 
     def Run(self, epochs: int):
-
+        yolostruct = YoloStruct(YoloGridBox(7, 2, 3), None)
         for epoch in range(epochs):
             try:
-                loss = 0
+                YoloBoxes = []
+                MAP = 0.
+                loss = 0.
                 for i, (inputs, targets) in enumerate(self.dataloader):
                     self.optmizer.zero_grad()
                     inputs = torch.FloatTensor(inputs).cuda()
                     targets = torch.FloatTensor(targets).cuda()
-
                     output = self.net(inputs)
                     loss_ = self.yololoss(output, targets)
                     loss_.backward()
                     self.optmizer.step()
                     loss += loss_.item()
-                print(f"epoch({epoch: 04}): ", f"{loss / len(self.dataloader): .4f}")
+
+                    _MAP = 0.
+                    for i in range(4): 
+                        _MAP += yolostruct.MeanAP(output[i].detach().cpu(), targets[i].detach().cpu(), ClassesNum=3)
+                    MAP += _MAP / 4
+                MAP /= len(self.dataloader)
+
+                print(f"epoch({epoch:04d}): ", f"{loss / len(self.dataloader):.4f}", f"MAP: {MAP:.4f}")
                 self.Save()
 
             except KeyboardInterrupt:
@@ -72,8 +83,7 @@ class TrainingModel:
 
 def main():
     Train = TrainingModel()
-    Train.Run(10)
-
+    Train.Run(1000)
 
 if __name__ == "__main__":
     main()

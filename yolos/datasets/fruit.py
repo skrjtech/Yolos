@@ -8,8 +8,8 @@ import os
 from glob import glob
 
 # MyLibs
-from yolos.structure import YoloRoot, YoloBox, YoloVersion
-from yolos.structure.boxstruct import Boxes, BoxLabel
+# from yolos.structure import YoloRoot, YoloBox, YoloVersion
+# from yolos.structure.boxstruct import Boxes, BoxLabel
 from yolos.utils import EncoderBBox, MakeTargetBBox
 
 class FruitLabel(object):
@@ -86,42 +86,42 @@ class FruitsImageDatasetTest(FruitsImageDataset):
         super(FruitsImageDatasetTest, self).__init__(path, transform, test=True, *args, **kwargs)
 
 
-from .Base import DataSetBase
-from yolos.structure import YoloRoot
-from yolos.structure import Box, Boxes, BoxLabel
-class FruitsImageDataset(DataSetBase):
-    classNameWithIndex: dict = {
-        "apple": 0, "banana": 1, "orange": 2,
-        0: "apple", 1: "banana", 2: "orange"
-    }
-    def __init__(self, Root: YoloRoot, *args, **kwargs):
-        super().__init__(Root, *args, **kwargs)
+# from .Base import DataSetBase
+# from yolos.structure import YoloRoot
+# from yolos.structure import Box, Boxes, BoxLabel
+# class FruitsImageDataset(DataSetBase):
+#     classNameWithIndex: dict = {
+#         "apple": 0, "banana": 1, "orange": 2,
+#         0: "apple", 1: "banana", 2: "orange"
+#     }
+#     def __init__(self, Root: YoloRoot, *args, **kwargs):
+#         super().__init__(Root, *args, **kwargs)
 
-        self.images = sorted(glob(os.path.join(self.path, "*.jpg")))
-        self.xmlano = sorted(glob(os.path.join(self.path, "*.xml")))
-        self.num = len(self.images)
+#         self.images = sorted(glob(os.path.join(self.path, "*.jpg")))
+#         self.xmlano = sorted(glob(os.path.join(self.path, "*.xml")))
+#         self.num = len(self.images)
 
-    def __len__(self):
-        return self.num
+#     def __len__(self):
+#         return self.num
 
-    def __getitem__(self, index):
-        imagePath = self.images[index]
-        xmlanPath = self.xmlano[index]
+#     def __getitem__(self, index):
+#         imagePath = self.images[index]
+#         xmlanPath = self.xmlano[index]
 
-        image = Image.open(imagePath)
-        image = image.convert("RGB")
-        width, height = image.size
+#         image = Image.open(imagePath)
+#         image = image.convert("RGB")
+#         width, height = image.size
 
-        BBoxes = Boxes(width, height)
-        TreeRoot = ET.parse(xmlanPath).getroot()
-        for obj in TreeRoot.findall("object"):
-            xmin = obj.find("bndbox").find("xmin").text
-            ymin = obj.find("bndbox").find("ymin").text
-            xmax = obj.find("bndbox").find("xmax").text
-            ymax = obj.find("bndbox").find("ymax").text
-            label = obj.find("name").text
-            BBoxes += Box(xmin, ymin, xmax, ymax, BoxLabel(self.classNameWithIndex[label], label))
+#         BBoxes = Boxes(width, height)
+#         TreeRoot = ET.parse(xmlanPath).getroot()
+#         for obj in TreeRoot.findall("object"):
+#             xmin = obj.find("bndbox").find("xmin").text
+#             ymin = obj.find("bndbox").find("ymin").text
+#             xmax = obj.find("bndbox").find("xmax").text
+#             ymax = obj.find("bndbox").find("ymax").text
+#             label = obj.find("name").text
+#             BBoxes += Box(xmin, ymin, xmax, ymax, BoxLabel(self.classNameWithIndex[label], label))
 
-        image, BBoxes = self.transform((image, BBoxes))
-        EncoderBox = EncoderBBox(BBoxes, width, height, S=self.S)
-        Target = MakeTargetBBox(EncoderBox, self.S, self.B, self.C)
+#         image, BBoxes = self.transform((image, BBoxes))
+#         EncoderBox = EncoderBBox(BBoxes, width, height, S=self.S)
+#         Target = MakeTargetBBox(EncoderBox, self.S, self.B, self.C)

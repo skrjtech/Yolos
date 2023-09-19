@@ -102,31 +102,6 @@ class YoloLossModel(YOLOMODEL):
         iou = intersect / Union
         return torch.max(iou.reshape(-1, 2), dim=1)
 
-    def Testing(self, predict: torch.Tensor):
-        S, N = self.S, self.N
-        CI = self.CI
-        BI = self.BI
-        LI = self.LI
-
-        Target = torch.zeros((1, S, S, N))
-        # X = 1, Y = 1
-        Target[:, 1, 1, CI] = torch.Tensor([1., 1.])
-        Target[:, 1, 1, BI] = torch.Tensor([[0.1, 0.1, 0.1, 0.1], [0.1, 0.1, 0.1, 0.1]])
-        Target[:, 1, 1, LI] = torch.Tensor([1., 0., 0.])
-
-        # X = 4, Y = 4
-        Target[:, 4, 4, CI] = torch.Tensor([1., 1.])
-        Target[:, 4, 4, BI] = torch.Tensor([[0.5, 0.5, 0.1, 0.1], [0.5, 0.5, 0.1, 0.1]])
-        Target[:, 4, 4, LI] = torch.Tensor([0., 1., 0.])
-
-        # X = 6, Y = 6
-        Target[:, 6, 6, CI] = torch.Tensor([1., 1.])
-        Target[:, 6, 6, BI] = torch.Tensor([[0.7, 0.7, 0.1, 0.1], [0.7, 0.7, 0.1, 0.1]])
-        Target[:, 6, 6, LI] = torch.Tensor([0., 0., 1.])
-
-        return self.forward(predict, Target)
-
-
 class YoloV1(YOLOMODEL):
     def __init__(self, *args, **kwargs) -> None:
         super(YoloV1, self).__init__(*args, **kwargs)
@@ -146,65 +121,5 @@ class YoloV1(YOLOMODEL):
     def forward(self, inp):
         return self.vgg(inp).reshape(-1, self.S, self.S, self.N)
 
-    def Testing(self):
-        with torch.no_grad():
-            return self.forward(torch.rand(1, 3, 224, 224))
-
-
-def makeBBoxes():
-    BBoxes = []
-    while len(BBoxes) < 3:
-        x1 = torch.randint(0, 350, size=(1,))
-        y1 = torch.randint(0, 350, size=(1,))
-        x2 = torch.randint(50, 400, size=(1,))
-        y2 = torch.randint(50, 400, size=(1,))
-        label = torch.randint(0, 3, size=(1,))
-        if x1 < x2 and y1 < y2:
-            BBoxes += [[x1, y1, x2, y2, label]]
-    return torch.Tensor(BBoxes)
-
-
-class TrainningTest(YOLOMODEL):
-    def __init__(self, *args, **kwargs) -> None:
-        super(TrainningTest, self).__init__(*args, **kwargs)
-        self.net = YoloV1(C=3)
-        self.net.cuda()
-        self.lossModel = YoloLossModel(C=3)
-        self.optim = torch.optim.Adam(self.parameters(), lr=0.0001, betas=(0.9, 0.999))
-
-        from utils import EncoderBBox, MakeTargetBBox
-        self.BBoxes = makeBBoxes()
-        self.enc = EncoderBBox(self.BBoxes, 400, 400)
-        self.Target = MakeTargetBBox(self.enc, 7, 2, 3).unsqueeze(0)
-
-    def forward(self):
-        Data = torch.zeros(*(1, 3, 224, 224))
-        Data = torch.FloatTensor(Data).cuda()
-
-        S, N = self.S, self.N
-        CI = self.lossModel.CI
-        BI = self.lossModel.BI
-        LI = self.lossModel.LI
-
-        Target = torch.FloatTensor(self.Target).cuda()
-
-        loss = 0.
-        while not ((loss > 0.) and (loss < 0.001)):
-            self.optim.zero_grad()
-            pred = self.net(Data)
-            loss = self.lossModel(pred, Target)
-            loss.backward()
-            self.optim.step()
-        print(f"loss: {loss.item(): .5f}")
-        pred = pred.detach().cpu().squeeze()
-        return pred
-
-
 if __name__ == "__main__":
-    # net = YoloV1(C=3)
-    # lossModel = YoloLossModel(C=3)
-    # predict = net.Testing()
-    # loss = lossModel.Testing(predict)
-    # print(loss)
-    Trainer = TrainningTest(C=3)
-    Trainer()
+    pass
