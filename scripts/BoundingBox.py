@@ -110,6 +110,8 @@ class BoundingBoxes(BaseBoxes):
     def __init__(self, width: int, height: int) -> None:
         super(BoundingBoxes, self).__init__(width, height)
         self.width, self.height = width, height
+        self._NormFlag = False
+        self._CenterFlag = False
 
     def Size(self) -> Tuple[int, int]:
         return (self.width, self.height)
@@ -120,6 +122,8 @@ class BoundingBoxes(BaseBoxes):
         return None
     
     def ToCenter(self) -> BoundingBoxes:
+        if self._CenterFlag: return self
+        self._CenterFlag = True
         for idx, bbox in enumerate(self.Box):
             if not isinstance(bbox, BoundingBox): continue
             xmin, ymin, xmax, ymax, labelname, labelid = bbox()
@@ -127,6 +131,8 @@ class BoundingBoxes(BaseBoxes):
         return self
 
     def ToPoint(self) -> BoundingBoxes:
+        if not self._CenterFlag: return self
+        self._CenterFlag = False
         for idx, bbox in enumerate(self.Box):
             if not isinstance(bbox, BoundingBoxCenter): continue
             cx, cy, w, h, labelname, labelid = bbox()
@@ -135,6 +141,8 @@ class BoundingBoxes(BaseBoxes):
         return self
 
     def Normalize(self) -> BoundingBoxes:
+        if self._NormFlag: return self
+        self._NormFlag = True
         for i, b in enumerate(self.Box):
             A, B, C, D, L1, L2 = b()
             A /= self.width
@@ -147,6 +155,8 @@ class BoundingBoxes(BaseBoxes):
         return self
 
     def DNormalize(self) -> BoundingBoxes:
+        if not self._NormFlag: return self
+        self._NormFlag = False
         for i, b in enumerate(self.Box):
             A, B, C, D, L1, L2 = b()
             A = PixelRepair(A * self.width)
@@ -182,5 +192,13 @@ if __name__ == "__main__":
     bboxlist += BoundingBox(2, 9, 10, 10, "banana", 2)
 
     print(bboxlist)
-    print(bboxlist.ClassIDSort())
-    print(bboxlist.CallID(2))
+    print(bboxlist.Normalize())
+    print(bboxlist.Normalize())
+    print(bboxlist.DNormalize())
+    print(bboxlist.DNormalize())
+
+    print(bboxlist.ToCenter())
+    print(bboxlist.ToCenter())
+    print(bboxlist.ToPoint())
+    print(bboxlist.ToPoint())
+    

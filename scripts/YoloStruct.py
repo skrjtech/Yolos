@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Any, Union, Tuple, List, Dict
+from typing import IO, Any, Union, Tuple, List, Dict
 
 import torch
 from BoundingBox import BoundingBoxes, BoundingBoxCenter, BoundingBox
@@ -10,9 +10,9 @@ class YoloRoot:
     S: int=7
     B: int=2
     C: int=20
-    ProThreshold: float=0.1
-    NMSThreshold: float=0.1
-    IoUThreshold: float=0.1
+    ProThreshold: float=0.3
+    NMSThreshold: float=0.5
+    IoUThreshold: float=0.5
     LambdaObj: float=5.
     LambdaNoObj: float=.5
     def __call__(self) -> Tuple:
@@ -47,7 +47,7 @@ class YoloBaseStruct:
         return self
     
     def __next__(self) -> Any:
-        if self.idx == len(self.Box):
+        if self.idx == len(self.GridBox):
             raise StopIteration()
         ret = self.GridBox[self.idx]
         self.idx += 1
@@ -82,41 +82,38 @@ class YoloBaseStruct:
     
     def ToBoundingBoxes(self):
         raise Exception("未設定")
-    
+
 class YoloStruct(YoloBaseStruct):
     def __init__(self, Root: YoloRoot, BBoxes: BoundingBoxes) -> None:
         super(YoloStruct, self).__init__()
         self.root = Root
         self.bboxes = BBoxes
+
+        self._EncDecFlag = False
     
     def __call__(self) -> Any:
         return self.ToTarget()
     
     def Encoder(self) -> YoloStruct:
+        if self._EncDecFlag: return self
+        self._EncDecFlag = True
+        
         S = self.root.S
-        if len(self.GridBox) == 0:
-            for box in self.bboxes():
-                if not isinstance(box, BoundingBoxCenter):
-                    raise Exception("not BoundingBoxCenter")
-                cx, cy, w, h, name, id = box()
-                cxi = int(cx * S)
-                cxn = (cx - (cxi / S)) * S
-                cyi = int(cy * S)
-                cyn = (cy - (cyi / S)) * S
-                self.GridBox.append(YoloBoxCenter(cxi, cyi, cxn, cyn, w, h, name, id))
-        else:
-            for idx, box in enumerate(self.bboxes()):
-                if not isinstance(box, BoundingBoxCenter):
-                    raise Exception("not BoundingBoxCenter")
-                cx, cy, w, h, name, id = box()
-                cxi = int(cx * S)
-                cxn = (cx - (cxi / S)) * S
-                cyi = int(cy * S)
-                cyn = (cy - (cyi / S)) * S
-                self.GridBox[idx] = YoloBoxCenter(cxi, cyi, cxn, cyn, w, h, name, id)
+        for box in self.bboxes():
+            if not isinstance(box, BoundingBoxCenter):
+                raise Exception("not BoundingBoxCenter")
+            cx, cy, w, h, name, id = box()
+            cxi = int(cx * S)
+            cxn = (cx - (cxi / S)) * S
+            cyi = int(cy * S)
+            cyn = (cy - (cyi / S)) * S
+            self.GridBox.append(YoloBoxCenter(cxi, cyi, cxn, cyn, w, h, name, id))
         return self
 
     def Decoder(self) -> YoloStruct:
+        if not self._EncDecFlag: return self
+        self._EncDecFlag = False
+        
         S = self.root.S
         if len(self.GridBox) == 0:
             raise Exception("エンコードされているGridBoxがありません")
@@ -149,7 +146,7 @@ class Detect:
         self.Result = None
 
     def __call__(self, Prediction: torch.Tensor) -> Dict[int:torch.Tensor]:
-        Decoder = self.Decoder(Prediction)
+        Decoder = self.Decoder(Prediction, True)
         Result = {}
         for ClassesLabel in range(self.C):
             Mask = (Decoder[..., -1] == ClassesLabel).unsqueeze(-1).expand_as(Decoder)
@@ -195,7 +192,6 @@ class Detect:
                     Result.append(box2)
             bbox = torch.vstack(Result)
         
-        XY0 = bbox[..., [0, 1]]
         XYMIN = ((bbox[..., [0, 1]] + bbox[..., [2, 3]]) / S - .5 * bbox[..., [4, 5]]).reshape(-1, 2)
         XYMAX = ((bbox[..., [0, 1]] + bbox[..., [2, 3]]) / S + .5 * bbox[..., [4, 5]]).reshape(-1, 2)
         return torch.concat((XYMIN, XYMAX, bbox[..., 6:].reshape(-1, 3)), dim=-1)
@@ -250,15 +246,51 @@ class Detect:
             union = (rem_areas - inter) + area[i]
             IoU = inter / union
 
-            idx = idx[IoU.le(self.root.IoUThreshold)]
+            idx = idx[IoU.le(self.root.NMSThreshold)]
             
         return keep, count
 
-    def AP(self):
-        return
+    def AP(self, Scores: torch.Tensor, Correct: torch.Tensor) -> torch.Tensor:
+        
+        if torch.sum(Correct) == 0:
+            # return torch.sum(Correct), Correct, Correct
+            return 0.
 
-    def MeanAP(self):
-        return
+        IndexSort = torch.sort(Scores, descending=True)[-1] # 降順
+        # Scores = Scores[IndexSort]
+        Correct = Correct[IndexSort]
+
+        TP = torch.cumsum(Correct, dim=-1)
+        Precision = TP / (torch.arange(TP.size(0)) + 1.)
+        Recall = TP / torch.sum(Correct, dim=-1)
+        
+        # PrecisionFlip = Precision.flip(dims=(0,))
+        # PrecisionFlip = torch.cummax(PrecisionFlip, dim=0)[0].flip(dims=(0,))
+
+        Precision = torch.concat([torch.Tensor([0]), Precision, torch.Tensor([0])], dim=-1)
+        Recall = torch.concat([torch.Tensor([0]), Recall, torch.Tensor([1])], dim=-1)
+
+        Recall = Recall[1:] - Recall[:-1]
+        
+        return torch.sum(Recall * Precision[1:], dim=-1)
+
+    def MeanAP(self, Prediction: torch.Tensor):
+        from Models import IoU as IntersectionOverUnion
+        result = self.__call__(Prediction)
+        APs = torch.zeros(self.C)
+        for key, val in result.items():
+            if val.size(0) == 0: continue
+            TBox = [Box for Box in self.yoloStruct.Decoder() if Box.labelid == key]
+            if len(TBox) == 0: continue
+            # TBox = [Box for Box in self.yoloStruct if Box.labelid == key]
+            XYXY = torch.Tensor([[Box.xmin, Box.ymin, Box.xmax, Box.ymax] for Box in TBox])
+            IoU = IntersectionOverUnion(val[..., :4], XYXY).reshape(-1)
+            # print(torch.max(val, dim=0)[0], torch.max(XYXY, dim=0)[0])
+            Correct = torch.where(IoU >= self.root.IoUThreshold, 1., 0.)
+            APs[key] = self.AP(val[..., -1].reshape(-1), Correct)
+        return torch.mean(torch.Tensor(APs)).item()
+
+        
     
 if __name__ == "__main__":
     BBoxes = BoundingBoxes(400, 400)
@@ -267,22 +299,13 @@ if __name__ == "__main__":
     BBoxes += BoundingBox(245, 245, 360, 360, "banana", 2)
 
     # Step1
-    BBoxes.Normalize()
-    print(BBoxes)
-    # Step2
-    BBoxes.ToCenter()
-    print(BBoxes)
-    # Step3
-    yoloStruct = YoloStruct(YoloRoot(C=3), BBoxes)
-    print(yoloStruct.Encoder())
-    ret = yoloStruct()
-    # Step4
-    print(BBoxes.ToPoint())
-    # Step5
-    print(BBoxes.DNormalize())
-    # Step6
-    print(yoloStruct.Decoder())
-    # Step7
+    BBoxes.Normalize().ToCenter()
+    yoloStruct = YoloStruct(YoloRoot(C=3), BBoxes).Encoder()
+    target = yoloStruct()
     detect = Detect(yoloStruct)
-    print(detect(ret))
-    
+    print(detect.MeanAP(target))
+    torch.manual_seed(123)
+    for i in range(10):
+        ret = torch.rand(7, 7, detect.N)
+        print(detect.MeanAP(ret))
+
