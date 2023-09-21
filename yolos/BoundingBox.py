@@ -26,7 +26,10 @@ class BoundingBox(object):
 
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         return self.xmin, self.ymin, self.xmax, self.ymax, self.labelname, self.labelid
-
+    
+    def __repr__(self) -> str:
+        return self.__str__()
+    
     def __str__(self) -> str:
         return f"(xmin: {self.xmin:^.3f} | ymin: {self.ymin:^.3f}), (xmax: {self.xmax:^.3f} | ymax: {self.ymax:^.3f}), (objname: {self.labelname} | objid: {self.labelid:^ 5})"
     
@@ -39,6 +42,9 @@ class BoundingBoxCenter:
     
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         return self.xcenter, self.ycenter, self.width, self.height, self.labelname, self.labelid
+    
+    def __repr__(self) -> str:
+        return self.__str__()
 
     def __str__(self) -> str:
         return f"(xcenter: {self.xcenter:^.3f} | ycenter: {self.ycenter:^.3f}), (width: {self.width:^.3f} | height: {self.height:^.3f}), (objname: {self.labelname} | objid: {self.labelid:^ 5})"
@@ -65,6 +71,9 @@ class BaseBoxes:
         ret = self.Box[self.idx]
         self.idx += 1
         return ret
+    
+    def __repr__(self) -> str:
+        return self.__str__()
     
     def __str__(self) -> str:
         for bbox in self.Box: 

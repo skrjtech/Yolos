@@ -7,8 +7,8 @@ import os
 import glob
 from typing import Any, Tuple
 
-from BoundingBox import BoundingBoxes, BoundingBox
-from YoloStruct import YoloRoot, YoloStruct
+from yolos.BoundingBox import BoundingBoxes, BoundingBox
+from yolos.YoloStruct import YoloRoot, YoloStruct
 
 class Compose:
     def __init__(self, transform: list) -> None:

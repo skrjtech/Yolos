@@ -1,9 +1,9 @@
 import torch
 import numpy as np
 
-from YoloStruct import YoloRoot, Detect
-from Models import YoloV1, YoloLossModel
-from Datasets import FruitsImageDataset, Compose, Resize, ToTensor, collate_fn
+from yolos.YoloStruct import YoloRoot, Detect
+from yolos.Models import YoloV1, YoloLossModel
+from yolos.Datasets import FruitsImageDataset, Compose, Resize, ToTensor, collate_fn
 
 class TrainingModel:
     def __init__(self) -> None:

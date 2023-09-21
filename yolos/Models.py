@@ -90,7 +90,7 @@ def yololoss(S: int, B: int, C: int, LambdaObj: float=5., LambdaNoObj: float=.5)
         return loss
     return __CALL__
 
-from YoloStruct import YoloRoot
+from yolos.YoloStruct import YoloRoot
 
 class YOLOMODEL(torch.nn.Module):
     def __init__(self, root: YoloRoot, *args, **kwargs) -> None:

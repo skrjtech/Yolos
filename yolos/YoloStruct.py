@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import IO, Any, Union, Tuple, List, Dict
 
 import torch
-from BoundingBox import BoundingBoxes, BoundingBoxCenter, BoundingBox
+from yolos.BoundingBox import BoundingBoxes, BoundingBoxCenter, BoundingBox
 
 @dataclass(frozen=False)
 class YoloRoot:
@@ -53,6 +53,9 @@ class YoloBaseStruct:
         self.idx += 1
         return ret
     
+    def __repr__(self) -> str:
+        return self.__str__()
+
     def __str__(self) -> str:
         for bbox in self.GridBox: 
             if self.labelnamelenght < len(bbox.labelname): self.labelnamelenght = len(bbox.labelname)
@@ -275,7 +278,7 @@ class Detect:
         return torch.sum(Recall * Precision[1:], dim=-1)
 
     def MeanAP(self, Prediction: torch.Tensor):
-        from Models import IoU as IntersectionOverUnion
+        from yolos.Models import IoU as IntersectionOverUnion
         result = self.__call__(Prediction)
         APs = torch.zeros(self.C)
         for key, val in result.items():
