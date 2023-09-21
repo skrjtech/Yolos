@@ -7,8 +7,8 @@ import os
 import glob
 from typing import Any, Tuple
 
-from yolos.BoundingBox import BoundingBoxes, BoundingBox
-from yolos.YoloStruct import YoloRoot, YoloStruct
+from BoundingBox import BoundingBoxes, BoundingBox
+from YoloBoxes import YoloRoot, YoloBoxes
 
 class Compose:
     def __init__(self, transform: list) -> None:
@@ -36,10 +36,9 @@ class Resize:
 def transform_(x, y) -> Tuple[torch.Tensor, BoundingBoxes]:
     return (x, y)
 
-class FruitsImageDataset(torch.utils.data.Dataset):
-    def __init__(self, root: YoloRoot, path: str, transform: torchvision.transforms.Compose=transform_, test: bool=False, *args, **kwargs):
+class FruitsImageDataset(torch.utils.data.Dataset, YoloRoot):
+    def __init__(self, path: str, transform: torchvision.transforms.Compose=transform_, test: bool=False, *args, **kwargs):
         super(FruitsImageDataset, self).__init__(*args, **kwargs)
-        self.root = root
 
         self.ClassName = {
             "apple": 0,
@@ -64,7 +63,7 @@ class FruitsImageDataset(torch.utils.data.Dataset):
         image = image.convert("RGB")
         width, height = image.size
 
-        BBoxes = BoundingBoxes(width, height)
+        BBoxes = YoloBoxes(width, height)
         TreeRoot = ET.parse(xmlanPath).getroot()
         for obj in TreeRoot.findall("object"):
             BBoxes += BoundingBox(
@@ -77,9 +76,7 @@ class FruitsImageDataset(torch.utils.data.Dataset):
             )
 
         image, BBoxes = self.transform(image, BBoxes)
-        yoloStruct = YoloStruct(self.root, BBoxes.Normalize().ToCenter())
-        return image, yoloStruct
-
+        return image, BBoxes()
 
 class FruitsImageDatasetTest(FruitsImageDataset):
     def __init__(self, path: str, transform: torchvision.transforms.Compose, *args, **kwargs):
@@ -92,10 +89,11 @@ def collate_fn(batch):
     return images, targets
 
 if __name__ == "__main__":
-    Datasets = FruitsImageDataset(YoloRoot(C=3), "database/Fruits/train", transform=Compose([Resize(size=(224, 224)), ToTensor()]))
-    Dataloader = torch.utils.data.DataLoader(Datasets, batch_size=4, shuffle=True, collate_fn=collate_fn)
+    YoloRoot(C=3)
+    Datasets = FruitsImageDataset("database/Fruits/train", transform=Compose([Resize(size=(224, 224)), ToTensor()]))
+    Dataloader = torch.utils.data.DataLoader(Datasets, batch_size=4, shuffle=True)
     images, Target = Datasets[0]
-    # print(Target.Encoder().ToTarget().shape)
-    # print(images.shape)
-    img, tar = next(iter(Dataloader))
-    print(tar)
+    print(images.shape, Target.shape)
+    images, Target = next(iter(Dataloader))
+    print(images.shape, Target.shape)
+    

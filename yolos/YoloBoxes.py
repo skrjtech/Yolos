@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import IO, Any, Union, Tuple, List, Dict
 
 import torch
-from yolos.BoundingBox import BoundingBoxes, BoundingBoxCenter, BoundingBox
+from BoundingBox import BoundingBoxes, BoundingBoxCenter, BoundingBox
 
 class YoloRoot:
     S: int=7
@@ -68,7 +68,6 @@ class YoloBoxes(YoloBoxesBase):
         self._EncDecFlag = False
     
     def __call__(self) -> torch.Tensor:
-        self.Encoder()
         return self.ToTarget()
     
     def Encoder(self) -> YoloBoxes:
@@ -106,7 +105,8 @@ class YoloBoxes(YoloBoxesBase):
         return self
 
     def ToTarget(self) -> torch.Tensor:
-        S, B, C, N = self.S, self.B, self.C, self.N
+        self.Encoder()
+        S, B, N = self.S, self.B, self.N
         Target = torch.zeros(S, S, N)
         for box in self.Boxes:
             if not isinstance(box, YoloBoxCenter):

@@ -90,25 +90,23 @@ def yololoss(S: int, B: int, C: int, LambdaObj: float=5., LambdaNoObj: float=.5)
         return loss
     return __CALL__
 
-from yolos.YoloStruct import YoloRoot
-
+from YoloBoxes import YoloRoot
 class YOLOMODEL(torch.nn.Module):
-    def __init__(self, root: YoloRoot, *args, **kwargs) -> None:
-        super(YOLOMODEL, self).__init__(*args, **kwargs)
-        self.root = root
-        self.S, self.B, self.C, self.N = self.root()
+    pass
 
-class YoloLossModel(YOLOMODEL):
-    def __init__(self, root: YoloRoot, *args, **kwargs):
-        super(YoloLossModel, self).__init__(root=root, *args, **kwargs)
-
+class YoloLossModel(YOLOMODEL, YoloRoot):
+    def __init__(self) -> None:
+        super().__init__()
+        YoloRoot.__init__(self)
+        
     def forward(self, P: torch.Tensor, T: torch.Tensor):
-        return yololoss(self.S, self.B, self.C, self.root.LambdaObj, self.root.LambdaNoObj)(P, T)
+        return yololoss(self.S, self.B, self.C, self.LambdaObj, self.LambdaNoObj)(P, T)
 
-class YoloV1(YOLOMODEL):
-    def __init__(self, root: YoloRoot, *args, **kwargs) -> None:
-        super(YoloV1, self).__init__(root=root, *args, **kwargs)
-
+class YoloV1(YOLOMODEL, YoloRoot):
+    def __init__(self) -> None:
+        super().__init__()
+        YoloRoot.__init__(self)
+        
         self.vgg = vgg = torchvision.models.vgg16(pretrained=True)
         vgg.features.requires_grad_()
         vgg.avgpool.requires_grad_()
@@ -125,8 +123,9 @@ class YoloV1(YOLOMODEL):
         return self.vgg(inp).reshape(-1, self.S, self.S, self.N)
 
 if __name__ == "__main__":
+    YoloRoot(C=3)
     BBox1 = torch.zeros(1, 7, 7, 13)
     BBox2 = torch.zeros(1, 7, 7, 13)
     BBox1[0, 1, 1] = torch.Tensor([0.11, 0.11, 0.4, 0.4, .9, 0.9, 0.9, 0.4, 0.4, .9, 0., 1., 0.])
     BBox2[0, 1, 1] = torch.Tensor([0.1, 0.1, 0.4, 0.4, 1., 0.1, 0.1, 0.4, 0.4, 1., 0., 0., 1.])
-    print(YoloLossModel(YoloRoot(C=3))(BBox1, BBox2))
+    print(YoloLossModel()(BBox1, BBox2))

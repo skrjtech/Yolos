@@ -1,6 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Any, Union, Tuple, List, Dict
+from typing import Any, Union, Tuple, List
 
 __all__ = [
     "BoundingBox",
@@ -209,4 +208,4 @@ if __name__ == "__main__":
     bboxlist += BoundingBox(2, 2, 10, 10, "orange", 0)
     bboxlist += BoundingBox(2, 9, 10, 10, "banana", 2)
     
-    print(bboxlist.ClassIDSort())
+    print(bboxlist.ClassIDSort().ToCenter())
