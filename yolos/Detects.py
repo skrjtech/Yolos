@@ -50,7 +50,7 @@ class Detect(YoloRoot):
                     args = list(map(lambda x: x.item(), res))
                     Result += DetectBox("None", ClassesLabel, *args)
             return Result
-        if Target is not None: return _Call_(Prediction), _Call_(self.Decoder(Target))
+        if Target is not None: return _Call_(self.Decoder(Prediction, True)), _Call_(self.Decoder(Target))
         return _Call_(self.Decoder(Prediction, True))
     
     def Decoder(self, Boxes: torch.Tensor, Bpatter: bool=False):
