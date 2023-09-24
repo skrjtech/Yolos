@@ -2,92 +2,90 @@ from __future__ import annotations
 from typing import Any, Union, Tuple, List
 
 __all__ = [
+    "BaseBoxes",
     "BoundingBox",
     "BoundingBoxCenter",
     "BoundingBoxes"
 ]
 
-class BoundingBox(object):
+class BoxBase:
+    Values: List=None
+    FormatInt: str=None
+    FormatFloat: str=None
+    
+    _FloatFlag: bool=None
+    def __call__(self) -> Any: return self.Values
+    def __repr__(self) -> str: return self.__str__()
+    def __str__(self) -> str:
+        if not self._FloatFlag: 
+            return self.FormatInt.format(*self.Values)
+        return self.FormatFloat.format(*self.Values)
+    
+    def ToInt(self) -> BoxBase:
+        """
+        Values: [LabelName, LabelId, ...]
+        """
+        self.Values[1: 5+1] = list(map(int, self.Values[1: 5+1])) # Label名以外を変換
+        return self
+
+def Str2Int(val: Any):
+    if isinstance(val, str): return int(val)
+    return val
+    
+class BoundingBox(BoxBase):
     """
-    座標とオブジェクト属性を格納する.\n
-    Xmin Ymin Xmax Ymax\n
-    LabelName Labelid\n
+    オブジェクト属性と座標を格納する.
+    LabelName Labelid Xmin Ymin Xmax Ymax
+    
     """
-    def __init__(self, xmin: Union[str, int, float], ymin: Union[str, int, float], xmax: Union[str, int, float], ymax: Union[str, int, float], labelname: str, labelid: Union[str, int]) -> None:
+    def __init__(self, labelname: str, labelid: int, xmin: Any, ymin: Any, xmax: Any, ymax: Any) -> None:
         
-        if isinstance(xmin, str) or isinstance(xmin, int): xmin = float(xmin)
-        if isinstance(ymin, str) or isinstance(ymin, int): ymin = float(ymin)
-        if isinstance(xmax, str) or isinstance(xmax, int): xmax = float(xmax)
-        if isinstance(ymax, str) or isinstance(ymax, int): ymax = float(ymax)
+        labelid, xmin, ymin, xmax, ymax = tuple(map(Str2Int, (labelid, xmin, ymin, xmax, ymax)))
         assert xmin < xmax, xmax > xmin 
         assert ymin < ymax, ymax > ymin 
         
-        self.xmin, self.ymin, self.xmax, self.ymax, self.labelname, self.labelid = xmin, ymin, xmax, ymax, labelname, labelid
+        self._FloatFlag = isinstance(xmin, float)
+        self.Values = list([labelname, int(labelid), xmin, ymin, xmax, ymax])
+        self.labelname, self.labelid, self.xmin, self.ymin, self.xmax, self.ymax = self.Values
+        self.FormatInt = "( objname: {} | objid: {:5d} ), ( xmin: {:4d} | ymin: {:4d} ), ( xmax: {:4d} | ymax: {:4d} )"
+        self.FormatFloat = "( objname: {} | objid: {:5d} ), ( xmin: {:08.03f} | ymin: {:08.03f} ), ( xmax: {:08.03f} | ymax: {:08.03f} )"
+    
+    def ToInt(self) -> BoundingBox: return super().ToInt()
+    
 
-    def __call__(self) -> Tuple[Union[int, float], Union[int, float], Union[int, float], Union[int, float], str, int]:
-        return self.xmin, self.ymin, self.xmax, self.ymax, self.labelname, self.labelid
-    
-    def __repr__(self) -> str:
-        return self.__str__()
-    
-    def __str__(self) -> str:
-        if isinstance(self.xmin, float):
-            return f"(xmin: {self.xmin:^.3f} | ymin: {self.ymin:^.3f}), (xmax: {self.xmax:^.3f} | ymax: {self.ymax:^.3f}), (objname: {self.labelname} | objid: {self.labelid:^ 5})"
-        return f"(xmin: {self.xmin: 4d} | ymin: {self.ymin: 4d}), (xmax: {self.xmax: 4d} | ymax: {self.ymax: 4d}), (objname: {self.labelname} | objid: {self.labelid:^ 5})"
-    
-    def ToInt(self) -> BoundingBox:
-        self.xmin, self.ymin, self.xmax, self.ymax = tuple(map(int, [self.xmin, self.ymin, self.xmax, self.ymax]))
-        return self
-    
-class BoundingBoxCenter:
-    def __init__(self, xcenter: Union[int, float], ycenter: Union[int, float], width: Union[int, float], height: Union[int, float], labelname: str, labelid: Union[str, int]) -> None:
+class BoundingBoxCenter(BoxBase):
+    def __init__(self, labelname: str, labelid: int, xcenter: Any, ycenter: Any, width: Any, height: Any) -> None:
         
-        self.xcenter, self.ycenter, self.width, self.height, self.labelname, self.labelid = xcenter, ycenter, width, height, labelname, labelid
-    
-    def __call__(self) -> Tuple[Union[int, float], Union[int, float], Union[int, float], Union[int, float], str, int]:
-        return self.xcenter, self.ycenter, self.width, self.height, self.labelname, self.labelid
-    
-    def __repr__(self) -> str:
-        return self.__str__()
+        self._FloatFlag = isinstance(xcenter, float)
+        self.Values = list([labelname, int(labelid), xcenter, ycenter, width, height])
+        self.labelname, self.labelid, self.xcenter, self.ycenter, self.width, self.height = self.Values
+        self.FormatInt = "( objname: {} | objid: {:5} ), ( xcenter: {:4d} | ycenter: {:4d} ), ( width: {:4d} | height: {:4d} )"
+        self.FormatFloat = "( objname: {} | objid: {:5} ), ( xcenter: {:08.03f} | ycenter: {:08.03f} ), ( width: {:08.03f} | height: {:08.03f} )"
 
-    def __str__(self) -> str:
-        if isinstance(self.xcenter, float):
-            return f"(xcenter: {self.xcenter:^.3f} | ycenter: {self.ycenter:^.3f}), (width: {self.width:^.3f} | height: {self.height:^.3f}), (objname: {self.labelname} | objid: {self.labelid:^ 5})"
-        return f"(xcenter: {self.xcenter: 4d} | ycenter: {self.ycenter: 4d}), (width: {self.width: 4d} | height: {self.height: 4d}), (objname: {self.labelname} | objid: {self.labelid:^ 5})"
-    
-    def ToInt(self) -> BoundingBoxCenter:
-        self.xcenter, self.ycenter, self.width, self.height = tuple(map(int, [self.xcenter, self.ycenter, self.width, self.height]))
-        return self
+    def ToInt(self) -> BoundingBoxCenter: return super().ToInt()
 
 class BaseBoxes:
-    def __init__(self, width: int, height: int) -> None:
-        self.width, self.height = width, height
+    Width: int=None
+    Height: int=None
+    def __init__(self) -> None:
         self.Boxes: List[Union[BoundingBox, BoundingBoxCenter]] = list()
-        self.LabelNameLength = 0
 
-    def __call__(self) -> List[Union[BoundingBox, BoundingBoxCenter]]:
-        return self.Boxes
-
+    def __call__(self) -> List[Union[BoundingBox, BoundingBoxCenter]]: return self.Boxes
     def __iter__(self):
         self.idx = 0
         return self
     
     def __next__(self) -> Any:
-        if self.idx == len(self.Boxes):
-            raise StopIteration()
-        ret = self.Boxes[self.idx]
+        if self.idx == len(self.Boxes): raise StopIteration()
         self.idx += 1
-        return ret
+        return self.Boxes[self.idx - 1]
     
-    def __repr__(self) -> str:
-        return self.__str__()
-    
+    def __repr__(self) -> str: return self.__str__()
     def __str__(self) -> str:
-        for box in self.Boxes: 
-            if self.LabelNameLength < len(box.labelname): self.LabelNameLength = len(box.labelname)
-        output = f"Width({self.width:^ 5}), Height({self.height:^ 5})\n"
+        maxStringLength = max([len(box.labelname) for box in self.Boxes]) # ボックス内のLabel名の最長文字列を選択
+        output = "Width({:^ 5}), Height({:^ 5})\n".format(*self.Size())
         for idx, box in enumerate(self.Boxes):
-            box = str(box).replace(box.labelname, box.labelname.center(self.LabelNameLength))
+            box = str(box).replace(box.labelname, box.labelname.center(maxStringLength))
             output += f"  ({idx:^ 3}){box}\n"
         return output
 
@@ -95,19 +93,17 @@ class BaseBoxes:
         self.Boxes.append(box)
         return self
 
-    def __len__(self) -> int:
-        return len(self.Boxes)
-
+    def __len__(self) -> int: return len(self.Boxes)
     def __setitem__(self, idx: int, box: Union[BoundingBox, BoundingBoxCenter]) -> None:
         self.Boxes[idx] = box
         return None
-
-    def __getitem__(self, idx: int) -> Union[BoundingBox, BoundingBoxCenter]:
-        return self.Boxes[idx]
-
-    def __dellitem__(self, idx: int) -> None:
-        del self.Boxes[idx]
-        return None
+        
+    def __getitem__(self, idx: int) -> Union[BoundingBox, BoundingBoxCenter]: return self.Boxes[idx]
+    def __dellitem__(self, idx: int) -> None: del self.Boxes[idx]
+    def Size(self) -> Tuple[int, int]: return (self.Width, self.Height)
+    def ToInt(self) -> BoundingBoxes:
+        for idx, box in enumerate(self.Boxes): self.__setitem__(idx, box.ToInt())
+        return self
     
 def PixelRepair(pixel):
     if (pixel - int(pixel)) < 0.5: return int(pixel)
@@ -120,27 +116,22 @@ class BoundingBoxes(BaseBoxes):
     CenterToPoint 中心座標の変換
     """
     def __init__(self, width: int, height: int) -> None:
-        super(BoundingBoxes, self).__init__(width, height)
-        self.width, self.height = width, height
+        super(BoundingBoxes, self).__init__()
+        self.Width, self.Height = width, height
         self._NormFlag = False
         self._CenterFlag = False
-
-    def Size(self) -> Tuple[int, int]:
-        return (self.width, self.height)
     
     def Append(self, box: Union[BoundingBox, BoundingBoxCenter]) -> BoundingBoxes:
-        self.LabelNameLength = len(box.labelname) if self.LabelNameLength < len(box.labelname) else self.LabelNameLength
         self.Boxes.append(box)
         return self
     
     def ToCenter(self) -> BoundingBoxes:
         if self._CenterFlag: return self
         self._CenterFlag = True
-        self._Normalize()
         for idx, box in enumerate(self.Boxes):
             if not isinstance(box, BoundingBox): continue
-            xmin, ymin, xmax, ymax, labelname, labelid = box()
-            box = BoundingBoxCenter((xmax + xmin) * .5, (ymax + ymin) * .5, (xmax - xmin), (ymax - ymin), labelname, labelid)
+            labelname, labelid, xmin, ymin, xmax, ymax = box()
+            box = BoundingBoxCenter(labelname, labelid, (xmax + xmin) * .5, (ymax + ymin) * .5, (xmax - xmin), (ymax - ymin))
             self.__setitem__(idx, box)
         return self
 
@@ -149,44 +140,38 @@ class BoundingBoxes(BaseBoxes):
         self._CenterFlag = False
         for idx, box in enumerate(self.Boxes):
             if not isinstance(box, BoundingBoxCenter): continue
-            cx, cy, w, h, labelname, labelid = box()
+            labelname, labelid, cx, cy, w, h = box()
             (w, h) = (w * .5, h * .5)
-            box = BoundingBox(cx - w, cy - h, cx + w, cy + h, labelname, labelid)
+            box = BoundingBox(labelname, labelid, cx - w, cy - h, cx + w, cy + h)
             self.__setitem__(idx, box)
-        self._DNormalize()
         return self
 
-    def _Normalize(self) -> BoundingBoxes:
+    def Normalize(self) -> BoundingBoxes:
         if self._NormFlag: return self
         self._NormFlag = True
-        for i, b in enumerate(self.Boxes):
-            A, B, C, D, L1, L2 = b()
-            A /= self.width
-            B /= self.height
-            C /= self.width
-            D /= self.height
-            if isinstance(b, BoundingBox): box = BoundingBox(A, B, C, D, L1, L2)
-            elif isinstance(b, BoundingBoxCenter): box = BoundingBoxCenter(A, B, C, D, L1, L2)
-            self.__setitem__(i, box)
+        for idx, box in enumerate(self.Boxes):
+            L1, L2, A, B, C, D = box()
+            A /= self.Width
+            B /= self.Height
+            C /= self.Width
+            D /= self.Height
+            if isinstance(box, BoundingBox): box = BoundingBox(L1, L2, A, B, C, D)
+            elif isinstance(box, BoundingBoxCenter): box = BoundingBoxCenter(L1, L2, A, B, C, D)
+            self.__setitem__(idx, box)
         return self
 
-    def _DNormalize(self) -> BoundingBoxes:
+    def DNormalize(self) -> BoundingBoxes:
         if not self._NormFlag: return self
         self._NormFlag = False
         for i, b in enumerate(self.Boxes):
-            A, B, C, D, L1, L2 = b()
-            A = PixelRepair(A * self.width)
-            B = PixelRepair(B * self.height)
-            C = PixelRepair(C * self.width)
-            D = PixelRepair(D * self.height)
-            if isinstance(b, BoundingBox): box = BoundingBox(A, B, C, D, L1, L2)
-            elif isinstance(b, BoundingBoxCenter): box = BoundingBoxCenter(A, B, C, D, L1, L2)
+            L1, L2, A, B, C, D = b()
+            A = PixelRepair(A * self.Width)
+            B = PixelRepair(B * self.Height)
+            C = PixelRepair(C * self.Width)
+            D = PixelRepair(D * self.Height)
+            if isinstance(b, BoundingBox): box = BoundingBox(L1, L2, A, B, C, D)
+            elif isinstance(b, BoundingBoxCenter): box = BoundingBoxCenter(L1, L2, A, B, C, D)
             self.__setitem__(i, box)
-        return self
-
-    def ToInt(self) -> BoundingBoxes:
-        for idx, box in enumerate(self.Boxes):
-            self.__setitem__(idx, box.ToInt())
         return self
     
     def CallID(self, id) -> BoundingBoxes:
@@ -203,9 +188,15 @@ class BoundingBoxes(BaseBoxes):
     
 if __name__ == "__main__":
 
-    bboxlist = BoundingBoxes(10, 10)
-    bboxlist += BoundingBox(1, 2, 10, 10, "apple", 1)
-    bboxlist += BoundingBox(2, 2, 10, 10, "orange", 0)
-    bboxlist += BoundingBox(2, 9, 10, 10, "banana", 2)
-    
-    print(bboxlist.ClassIDSort().ToCenter())
+    bboxlist1 = BoundingBoxes(10, 10)
+    bboxlist1 += BoundingBox("apple" , 1, 1, 2, 10, 10)
+    bboxlist1 += BoundingBox("orange", 0, 2, 2, 10, 10)
+    bboxlist1 += BoundingBox("banana", 2, 2, 9, 10, 10)
+
+    bboxlist2 = BoundingBoxes(100, 100)
+    bboxlist2 += BoundingBox("apple" , 1, 10, 20, 100, 100)
+    bboxlist2 += BoundingBox("orange", 0, 20, 20, 100, 100)
+    bboxlist2 += BoundingBox("banana", 2, 20, 90, 100, 100)
+
+    print(bboxlist1)
+    print(bboxlist2)
