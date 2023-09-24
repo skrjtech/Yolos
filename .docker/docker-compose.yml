@@ -2,13 +2,13 @@
 version: '3.9'
 services:
   yolosservices:
-    build: 
-      context: ..
-      dockerfile: .docker/Dockerfile
-      args:
-        - IMAGE_TAG=ubuntu:20.04
-        - PYTHON_VERSION=3.9.18
-        - PYCHARM_VERSION=2023.2.1
+    # build: 
+    #   context: ..
+    #   dockerfile: .docker/Dockerfile
+    #   args:
+    #     - IMAGE_TAG=ubuntu:20.04
+    #     - PYTHON_VERSION=3.9.18
+    #     - PYCHARM_VERSION=2023.2.1
     image: skrjtech/yolos:latest
     container_name: yolosprojectcontainer
     tty: true
